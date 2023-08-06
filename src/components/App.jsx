@@ -1,4 +1,4 @@
-import React, { Component } from "react";
+import React, { useState } from "react";
 import "./app.css";
 import axios from "axios";
 import { Oval } from 'react-loader-spinner';
@@ -9,102 +9,87 @@ import Button from "./finder/Button";
 axios.defaults.baseURL = "https://pixabay.com/api/";
 const key = "37372386-536360ba144753f1ce789d08e";
 
-export class App extends Component {
+export const App = () => {
+  const [search, setSearch] = useState("");
+  const [searchArr, setSearchArr] = useState([]);
+  const [totalHits, setTotalHits] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
 
-  state = {
-    search: "",
-    searchArr: [],
-    totalHits: null,
-    isLoading: false,
-    error: null,
-    page: 1,
-  }
-
-  onSubmit = async (evt) => {
+  const onSubmit = async (evt) => {
     evt.preventDefault();
 
     const form = evt.currentTarget;
     const search = form.elements.search.value;
 
     if (search !== "") {
-      this.setState({ isLoading: true, searchArr: [], page: 1 });
-      
-      this.setState({ search: search });
+      setIsLoading(true);
+      setSearchArr([]);
+      setPage(1);
+      setSearch(search);
 
       // await new Promise((resolve) => setTimeout(resolve, 4000));
 
       try {
         const response = await axios.get(`?q=${search}&page=1&key=${key}&image_type=photo&orientation=horizontal&per_page=12`);
-        this.setState({
-          searchArr: response.data.hits,
-          totalHits: response.data.totalHits,
-        });
+        setSearchArr(response.data.hits);
+        setTotalHits(response.data.totalHits);
       } catch (error) {
-        this.setState({error})
+        setError(error);
       } finally {
-        this.setState({ isLoading: false });
+        setIsLoading(false);
       }
     }
     form.reset();
   }
 
-  loadMore = async () => {
-    this.setState({ isLoading: true });
+  const loadMore = async () => {
+    setIsLoading(true);
     try {
       // await new Promise((resolve) => setTimeout(resolve, 4000));
 
-      const nextPage = this.state.page + 1;
-      const response = await axios.get(`?q=${this.state.search}&page=${nextPage}&key=${key}&image_type=photo&orientation=horizontal&per_page=12`);
-      this.setState({
-        searchArr: [...this.state.searchArr, ...response.data.hits],
-        page: nextPage,
-      });
+      const nextPage = page + 1;
+      const response = await axios.get(`?q=${search}&page=${nextPage}&key=${key}&image_type=photo&orientation=horizontal&per_page=12`);
+      setSearchArr([...searchArr, ...response.data.hits]);
+      console.log(searchArr);
+      setPage(nextPage);
     } catch (error) {
-      this.setState({ error });
+      setError(error);
     } finally {
-      this.setState({ isLoading: false });
+      setIsLoading(false);
     }
   }
 
-  // componentDidUpdate() {
-  //   console.log("New search:", this.state.search);
-  //   console.log("Answer:", this.state.searchArr);
-  //   console.log(this.state.totalHits);
-  // }
+  return (
+    <div className="App">
+      <Searchbar onSubmit={onSubmit} />
+      
+      {error && <p>Whoops, something went wrong: {error.message}</p>}
 
-  render() {
-    const { isLoading, error, searchArr, totalHits } = this.state;
+      {searchArr.length > 0 && <ImageGallery searchArr={searchArr} />}
 
-    return (
-      <div className="App">
-        <Searchbar onSubmit={this.onSubmit} />
-        
-        {error && <p>Whoops, something went wrong: {error.message}</p>}
+      {
+        isLoading &&
+        <div className="loading">
+          <Oval
+            height={80}
+            width={80}
+            color="darkblue"
+            wrapperStyle={{}}
+            wrapperClass=""
+            visible={true}
+            ariaLabel='oval-loading'
+            secondaryColor="#3f51b5"
+            strokeWidth={3}
+            strokeWidthSecondary={5}
+            
+          />
+        </div>
+      }
 
-        {searchArr.length > 0 && <ImageGallery searchArr={searchArr} />}
-
-        {
-          isLoading &&
-          <div className="loading">
-            <Oval
-              height={80}
-              width={80}
-              color="darkblue"
-              wrapperStyle={{}}
-              wrapperClass=""
-              visible={true}
-              ariaLabel='oval-loading'
-              secondaryColor="#3f51b5"
-              strokeWidth={3}
-              strokeWidthSecondary={5}
-              
-            />
-          </div>
-        }
-
-        {!isLoading && searchArr.length < totalHits && <Button loadMore={this.loadMore} />}
-        
-      </div>
-    )
-  }
+      {!isLoading && searchArr.length < totalHits && <Button loadMore={loadMore} />}
+      
+    </div>
+  )
 }
